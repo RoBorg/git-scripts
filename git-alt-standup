@@ -1,0 +1,149 @@
+#!/bin/bash
+# ------------------------------------------------------------------
+# Git Daily Scrum (stand-up meeting) helper.
+#
+# The script helps you remember what you did last time and facilitates
+# writing daily log for remote teams. Be aware that it assumes that
+# meetings are conducted at the same time every day.
+#
+# Installation:
+# 1. Place the script in some folder, e.g. your home:
+#    mv git-standup ~/
+# 2. Add it as an alias:
+#    git config --global alias.stand '!~/git-standup'
+# ------------------------------------------------------------------
+
+USAGE="
+Usage: git stand [OPTION]
+
+  -h, --help                Display this message.
+  -l, --labels              Display sections labels. Makes text almost
+                            ready to send it to your remote team.
+  -r, --risk                Include 'risks' section.
+                            Requires 'labels' option.
+  -p, --placeholder TEXT    Override placeholder with 'TEXT'.
+                            Requires 'labels' option.
+  -c, --copy                Copy output to clipboard.
+  -a, --author              Username. By default it's you (or someone
+                            specified in config).
+  -s, --since               From which point start to look for commits.
+                            Useful when you return from holiday.
+"
+
+# Labels
+LABEL_PREV="*prev*:"  # 1. What did I do yesterday that helped the Development Team meet the Sprint Goal?
+LABEL_NEXT="*next*:"  # 2. What will I do today to help the Development Team meet the Sprint Goal?
+LABEL_OBST="*obst*:"  # 3. Do I see any impediment that prevents me or the Development Team from meeting the Sprint Goal?
+LABEL_RISK="*risk*:"  # 4. (Optional) Is there a propability that Development Team will fail to meet the Sprint Goal?
+PLACEHOLDER="nothing" # What to put in sections 2-4 as a default
+
+# Git log format
+FORMAT="%C(yellow)-%C(reset) %w(80,0,2)%s"
+FORMAT_COPY="- %w(80,0,2)%s"
+
+# Colors
+reset="\033[0m"            # Reset color
+title="\033[0;30m\033[43m" # Black text, yellow background
+dash="\033[0;33m"          # Yellow
+label="\033[0;30m\033[41m" # Black text, Red background
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        -h|--help)        echo "$USAGE"; exit ;;
+        -l|--labels)      LABELS=1 ;;
+        -r|--risk)        RISK=1 ;;
+        -p|--placeholder) PLACEHOLDER=$2; shift ;;
+        -c|--copy)        COPY=1 ;;
+        -a|--author)      AUTHOR=$2; shift ;;
+        -s|--since)       SINCE=$2; shift ;;
+        -*)               echo "unknown option: $1" >&2; exit 1;;
+    esac
+    shift
+done
+
+function lastworkingday()
+{
+    if [[ "1" == "$(date +%u)" ]]; then
+        echo "last friday"
+    else
+        echo "yesterday"
+    fi
+}
+
+AUTHOR=${AUTHOR:="$(git config user.name)"}
+SINCE=${SINCE:="$(lastworkingday)"}
+
+function dailyscrum()
+{
+    # Reset colors when 'copy' switch is used
+    if [ "$COPY" = "1" ]; then
+        FORMAT=$FORMAT_COPY
+        reset=""
+        title=""
+        dash=""
+        label=""
+    # Echo header if not copying
+    else
+        echo -e "${title}Commits by $AUTHOR since $SINCE (oldest on top):${reset}"
+        echo ""
+    fi
+
+    if [ "$LABELS" = "1" ]; then
+        echo -e "${label}${LABEL_PREV}${reset}"
+    fi
+
+    LOG=$(git log --author="$AUTHOR" --since="$SINCE" --branches=* --format="$FORMAT" --date-order --reverse)
+    if [ -n "$LOG" ]; then
+        echo "$LOG"
+    else
+        echo -e "${dash}-${reset} ${PLACEHOLDER}"
+    fi
+
+    if [ "$LABELS" = "1" ]; then
+        echo -e "${label}${LABEL_NEXT}${reset}"
+        echo -e "${dash}-${reset} ${PLACEHOLDER}"
+
+        echo -e "${label}${LABEL_OBST}${reset}"
+        echo -e "${dash}-${reset} ${PLACEHOLDER}"
+
+        if [ "$RISK" = "1" ]; then
+            echo -e "${label}${LABEL_RISK}${reset}"
+            echo -e "${dash}-${reset} ${PLACEHOLDER}"
+        fi
+    fi
+}
+
+text=$(dailyscrum)
+
+if [ "$COPY" = "1" ]; then
+    case "$(uname -s)" in
+        Darwin)
+            echo "$text" | pbcopy
+            ;;
+
+        Linux)
+            if [ -n "$(which xclip)" ]; then
+                echo "$text" | xclip -selection c
+            else
+                echo "You should install 'xclip' first." >&2
+                exit 1
+            fi
+            ;;
+
+        CYGWIN*|MINGW*|MSYS*)
+            echo "$text" | clip
+            ;;
+
+        *)
+            echo "Unknown OS, don't know how to copy stuff to clipboard, sorry." >&2
+            exit 1
+            ;;
+    esac
+
+    echo ""
+    echo "Your Daily Scrum has been copied to clipboard."
+else
+    echo -e "$text"
+fi
+
+echo ""
