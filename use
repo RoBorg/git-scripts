@@ -1,0 +1,20 @@
+#!/bin/bash
+
+bold=$(tput bold)
+normal=$(tput sgr0)
+
+git fetch --all --prune
+
+echo
+
+if [ ! $1 ]; then
+	echo "${bold}Local branches:${normal}"
+	git branch
+	echo ""
+	echo "${bold}Remote branches:${normal}"
+	git branch -r
+fi
+
+if [ $1 ]; then
+	git checkout $1
+fi

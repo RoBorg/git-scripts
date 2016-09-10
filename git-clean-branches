@@ -1,0 +1,11 @@
+#!/bin/bash
+
+if [ `git get-branch` != master ];
+then
+    echo "This must be run on the master branch"
+fi;
+
+for f in `git branch | grep -v "*"`;
+do
+    git branch -d $f
+done

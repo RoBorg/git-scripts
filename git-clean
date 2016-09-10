@@ -1,0 +1,13 @@
+#!/bin/bash
+
+git checkout master
+
+if [ `git get-branch` != master ];
+then
+    echo "This must be run on the master branch"
+fi;
+
+git fetch --all --prune
+git pull --ff-only
+
+git-clean-branches

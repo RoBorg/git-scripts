@@ -1,0 +1,7 @@
+#!/bin/bash
+
+vbc=$(git rev-parse --abbrev-ref HEAD)
+vbc_col=$(( $(git show-branch | grep '^[^\[]*\*' | head -1 | cut -d* -f1 | wc -c) - 1 )) 
+swimming_lane_start_row=$(( $(git show-branch | grep -n "^[\-]*$" | cut -d: -f1) + 1 )) 
+
+git show-branch | tail -n +$swimming_lane_start_row | grep -v "^[^\[]*\[$vbc" | grep "^.\{$vbc_col\}[^ ]" | head -n1 | sed 's/.*\[\(.*\)\].*/\1/' | sed 's/[\^~].*//'

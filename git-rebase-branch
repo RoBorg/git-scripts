@@ -1,0 +1,9 @@
+#!/bin/bash
+
+branch=$1
+
+if [ ! $1 ]; then
+  branch=`parent-branch-git`
+fi
+
+git rebase -i `git merge-base $branch HEAD`
